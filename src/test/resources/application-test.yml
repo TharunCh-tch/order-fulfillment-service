@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:orderdb-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Flyway migrations target real PostgreSQL syntax and are exercised against
+  # a real Postgres container in the Testcontainers-tagged tests. Fast H2
+  # slice/integration tests instead let Hibernate generate the schema from
+  # the entity model, which keeps them Docker-free.
+  flyway:
+    enabled: false
+
+  kafka:
+    bootstrap-servers: PLAINTEXT://localhost:9092
