@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
@@ -15,8 +16,16 @@ import java.math.BigDecimal;
 @Table(name = "order_items")
 public class OrderItem {
 
+    // SEQUENCE, not IDENTITY: this entity is the child of a List with
+    // @OrderColumn (Order.items). IDENTITY forces Hibernate to insert each
+    // row immediately to get its generated key back, before it knows the
+    // item's final list position -- so item_order gets written via a
+    // follow-up UPDATE instead of the initial INSERT, which fails against a
+    // NOT-NULL item_order column. SEQUENCE lets Hibernate obtain the id
+    // upfront and write item_order correctly in one INSERT.
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "order_items_seq")
+    @SequenceGenerator(name = "order_items_seq", sequenceName = "order_items_id_seq", allocationSize = 1)
     private Long id;
 
     @ManyToOne
