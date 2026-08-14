@@ -10,7 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.OrderColumn;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -50,8 +50,17 @@ public class Order {
     // mapping to a response DTO outside the service-layer transaction
     // (open-in-view is disabled) without resorting to fetch-join queries that
     // don't compose well with Pageable.
+    //
+    // @OrderBy (a read-time ORDER BY), not @OrderColumn: line items only need
+    // stable insertion-order display, not arbitrary reordering, and
+    // @OrderColumn on the inverse side of a bidirectional mappedBy
+    // relationship doesn't reliably populate its index column on insert --
+    // Hibernate defers that write to a follow-up UPDATE regardless of ID
+    // generation strategy, which fails against a NOT-NULL index column and
+    // is fragile even when nullable. Ordering by id is sufficient here since
+    // ids are assigned in insertion order.
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    @OrderColumn(name = "item_order")
+    @OrderBy("id ASC")
     private List<OrderItem> items = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false)

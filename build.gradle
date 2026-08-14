@@ -62,13 +62,6 @@ tasks.register('integrationTest', Test) {
 	group = 'verification'
 	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath
-	// TEMP: SQL/bind-parameter tracing to diagnose the item_order insert
-	// issue directly from CI output instead of guessing. Remove once fixed.
-	systemProperty 'logging.level.org.hibernate.SQL', 'DEBUG'
-	systemProperty 'logging.level.org.hibernate.orm.jdbc.bind', 'TRACE'
-	testLogging {
-		showStandardStreams = true
-	}
 	useJUnitPlatform {
 		includeTags 'testcontainers'
 	}
