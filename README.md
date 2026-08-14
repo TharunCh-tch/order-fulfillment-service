@@ -152,18 +152,22 @@ curl -X POST http://localhost:8080/api/v1/orders \
 A moment later, an `InventoryReservation` row will exist for that order,
 written by the Kafka consumer that reacted to the `order.created` event.
 
-**Honesty note:** `docker compose up` was **written and reviewed but not run
-in this environment** — the sandbox this project was built in has the Docker
-CLI installed but no running Docker daemon (`com.docker.service` is stopped,
-and starting it requires admin rights this environment doesn't have). The
-Dockerfile and compose file follow standard, well-tested patterns (multi-stage
-Temurin build, official `postgres:16-alpine`, official `apache/kafka:3.8.0`
-KRaft image), and the equivalent Testcontainers-based integration test
-(`KafkaEventFlowIT`, see below) exercises the same Spring Kafka /
-Spring Data JPA wiring against real Postgres and Kafka containers — but that
-test also requires Docker and has only been verified by inspection here, not
-executed. It **is** wired into CI (`integration-test` job), which runs on
-GitHub-hosted runners that ship Docker preinstalled.
+**Honesty note:** `docker compose up` itself has still not been run in the
+sandbox this project was built in — the Docker CLI is installed but no daemon
+is running (`com.docker.service` is stopped, and starting it requires admin
+rights this environment doesn't have). The Dockerfile and compose file follow
+standard, well-tested patterns (multi-stage Temurin build, official
+`postgres:16-alpine`, official `apache/kafka:3.8.0` KRaft image), but that
+specific command is still unverified locally.
+
+What **has** been verified for real, on GitHub-hosted runners with Docker
+preinstalled: the equivalent Testcontainers-based integration test
+(`KafkaEventFlowIT`, see below) exercises the same Spring Kafka / Spring Data
+JPA wiring against real, ephemeral Postgres and Kafka containers, and it
+currently **passes in CI** — it took three real bug fixes to get there
+(a missing Flyway autoconfiguration dependency, a missing Jackson JSR-310
+module, and replacing `@OrderColumn` with `@OrderBy`), all driven by actual
+CI failures, not guesswork.
 
 ### Running locally without Docker (app only, against H2)
 
@@ -213,12 +217,12 @@ green, verified in this environment**:
 Runs the Testcontainers-tagged suite (`KafkaEventFlowIT`,
 `OrderFulfillmentServiceApplicationTests`) against **real** Postgres and
 Kafka containers, provisioned via `@ServiceConnection` in
-`TestcontainersConfiguration`. Requires a running Docker daemon. **Not run
-locally in this environment** (no Docker daemon available, see above) — it
-runs in the `integration-test` CI job instead. It is intentionally excluded
-from the default `test` task and from `build`/`check` (see the JUnit tag
-wiring in `build.gradle`) precisely so that `./gradlew build` works on a
-machine without Docker.
+`TestcontainersConfiguration`. Requires a running Docker daemon, so it's
+**not run locally in this environment** (see above) — but it does run for
+real in the `integration-test` CI job on every push, and currently passes.
+It is intentionally excluded from the default `test` task and from
+`build`/`check` (see the JUnit tag wiring in `build.gradle`) precisely so
+that `./gradlew build` works on a machine without Docker.
 
 ## Persistence notes
 
@@ -247,9 +251,9 @@ purposes:
 | REST layer (validation, status codes, error mapping)  | `./gradlew test` (`OrderControllerTest`) — ran locally, all passing |
 | Full REST → service → JPA lifecycle                   | `./gradlew test` (`OrderApiIntegrationTest`, H2) — ran locally, all passing |
 | `./gradlew build` (assemble + test + bootJar)          | ran locally, succeeded                                     |
-| Kafka producer → real broker → consumer → Postgres     | written, reviewed, **not executed locally** (no Docker daemon); runs in CI's `integration-test` job |
-| `docker compose up` end-to-end                        | written, reviewed, **not executed locally** (no Docker daemon); Dockerfile build is checked in CI's `docker-build` job |
-| GitHub Actions CI itself                               | not executed locally (no `act`/local runner used) — will run for real on push |
+| Kafka producer → real broker → consumer → Postgres     | not executed locally (no Docker daemon); **verified in CI's `integration-test` job — currently passing** |
+| `docker compose up` end-to-end                        | still not executed anywhere (local or CI); Dockerfile build itself is checked in CI's `docker-build` job |
+| GitHub Actions CI itself                               | not run locally (no `act`/local runner used) — runs for real on every push; latest run is green |
 
 ## Requirements
 
