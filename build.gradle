@@ -33,6 +33,8 @@ dependencies {
 	// it's actually on the classpath. Not pulled in transitively by any of
 	// the starters above.
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+	// Browsable Swagger UI for exercising/documenting the REST API by hand.
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
 	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'org.postgresql:postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'

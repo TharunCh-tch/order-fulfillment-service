@@ -6,6 +6,32 @@ It's a self-contained demo of the backend patterns used in an event-driven,
 containerized microservices stack (REST + JPA + Kafka + Docker + CI) — not a
 copy of any employer's proprietary system.
 
+## API in action
+
+Real requests against a running instance of this service (H2-backed `test`
+profile, no Docker required — see "Running locally without Docker" below),
+captured via the browsable Swagger UI at `/swagger-ui.html`
+([springdoc-openapi](https://springdoc.org/)). Not mockups — every response
+body shown here came back from the actual REST + JPA stack.
+
+**All endpoints, browsable and self-documenting:**
+
+![Swagger UI listing all order-controller endpoints](docs/screenshots/01-swagger-ui-overview.jpg)
+
+**`POST /api/v1/orders` — a real request, filled in and ready to send:**
+
+![Create-order request body filled in via Swagger's Try it out](docs/screenshots/02-create-order-request.jpg)
+
+**...and the real `201 Created` response that came back**, with the
+generated `orderNumber`, computed `lineTotal`s, and `totalAmount`:
+
+![201 Created response with a real persisted order](docs/screenshots/03-create-order-response.jpg)
+
+**`GET /api/v1/orders/{orderNumber}` — fetching that same order back**, shown
+with the exact `curl` command Swagger UI generated for the request:
+
+![GET request for the created order, with generated curl command](docs/screenshots/04-get-order-curl.jpg)
+
 ## Problem
 
 An order-processing service needs to: accept orders over HTTP, persist them
@@ -80,6 +106,7 @@ com.tharunch.orderfulfillment
 | Build tool          | Gradle 9.5.1 via the committed Gradle Wrapper (no local Gradle install needed) |
 | Persistence         | PostgreSQL 16, schema-versioned with Flyway; H2 (Postgres-compat mode) for fast local tests |
 | Messaging           | Apache Kafka (KRaft mode, single broker via `apache/kafka:3.8.0`) |
+| API docs            | springdoc-openapi (OpenAPI 3.1 + browsable Swagger UI at `/swagger-ui.html`) |
 | Tests               | JUnit 5, Mockito, AssertJ, MockMvc, Testcontainers, Awaitility     |
 | Containerization    | Multi-stage Dockerfile, Docker Compose (app + Postgres + Kafka)   |
 | CI                  | GitHub Actions (`actions/setup-java`, Gradle wrapper, Docker build)|
@@ -171,15 +198,26 @@ CI failures, not guesswork.
 
 ### Running locally without Docker (app only, against H2)
 
-Not the primary path, but useful for a quick look at the REST layer:
+Not the primary path, but useful for a quick look at the REST layer.
+
+**Honesty note:** `--spring.profiles.active=test` alone does *not* work here,
+even though `src/test/resources/application-test.yml` defines a `test`
+profile — Gradle's `bootRun` runs off the `main` source set's classpath,
+which doesn't include `src/test/resources`, so that profile file is never
+picked up and the app falls back to the default Postgres datasource in
+`application.yml` (and fails to connect). The working equivalent overrides
+the same settings directly on the command line:
 
 ```bash
-./gradlew bootRun --args='--spring.profiles.active=test'
+./gradlew bootRun --args='--spring.datasource.url=jdbc:h2:mem:orderdb-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1 --spring.datasource.driver-class-name=org.h2.Driver --spring.datasource.username=sa --spring.datasource.password= --spring.jpa.hibernate.ddl-auto=create-drop --spring.flyway.enabled=false'
 ```
 
-This uses the H2-backed `test` profile (see `src/test/resources/application-test.yml`),
-so there's no order-created Kafka event flowing anywhere in this mode (no
-broker configured) — it's for poking at the REST API only.
+This is the H2-backed setup (same idea as `application-test.yml`), so
+there's no real broker and no order-created Kafka event actually flowing —
+`OrderEventProducer` catches the resulting publish failure and logs it
+rather than failing the request (event publishing is a side effect of order
+creation, not a dependency of it), so the REST API itself still works end
+to end. Browse it at `http://localhost:8080/swagger-ui.html`.
 
 ### API endpoints
 

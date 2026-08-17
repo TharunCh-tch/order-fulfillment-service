@@ -21,12 +21,32 @@ public class OrderEventProducer {
 
     public void publishOrderCreated(OrderCreatedEvent event) {
         log.info("Publishing OrderCreatedEvent for order {}", event.orderNumber());
-        kafkaTemplate.send(ORDER_CREATED_TOPIC, event.orderNumber(), event);
+        sendSafely(ORDER_CREATED_TOPIC, event.orderNumber(), event);
     }
 
     public void publishOrderStatusChanged(OrderStatusChangedEvent event) {
         log.info("Publishing OrderStatusChangedEvent for order {}: {} -> {}",
                 event.orderNumber(), event.previousStatus(), event.newStatus());
-        kafkaTemplate.send(ORDER_STATUS_CHANGED_TOPIC, event.orderNumber(), event);
+        sendSafely(ORDER_STATUS_CHANGED_TOPIC, event.orderNumber(), event);
+    }
+
+    /**
+     * Publishing an order event is a side effect of the REST request, not a dependency of it: per
+     * the architecture this notifies a decoupled downstream consumer, so a broker outage (or, e.g.,
+     * running the app locally against H2 with no broker configured at all) must not fail the HTTP
+     * request that triggered it. {@code KafkaTemplate.send()} can itself throw synchronously (e.g. a
+     * metadata-fetch timeout) before it ever returns a future, so both the synchronous call and the
+     * async completion are guarded here.
+     */
+    private void sendSafely(String topic, String key, Object payload) {
+        try {
+            kafkaTemplate.send(topic, key, payload).whenComplete((result, ex) -> {
+                if (ex != null) {
+                    log.error("Failed to publish event with key {} to topic {}", key, topic, ex);
+                }
+            });
+        } catch (Exception ex) {
+            log.error("Failed to publish event with key {} to topic {}", key, topic, ex);
+        }
     }
 }
